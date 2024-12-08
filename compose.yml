@@ -1,0 +1,99 @@
+volumes:
+  postgres16-data:
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGUSER: postgres
+      POSTGRES_USER: postgres
+      PGDATABASE: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres16-data:/var/lib/postgresql/data
+      - ./initdb.d:/docker-entrypoint-initdb.d
+  rest:
+    image: docker.io/postgrest/postgrest:v12.2.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@postgres/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_USE_LEGACY_GUCS: 'false'
+      PGRST_JWT_ROLE_CLAIM_KEY: '."role"'
+      PGRST_LOG_LEVEL: info
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+  meta:
+    container_name: supabase-meta
+    image: docker.io/supabase/postgres-meta:v0.84.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: postgres
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+  studio:
+    container_name: supabase-studio
+    image: docker.io/supabase/studio:20241202-71e5240
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://studio:3000/api/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"
+        ]
+      timeout: 10s
+      interval: 5s
+      retries: 3
+    depends_on:
+      meta:
+        condition: service_healthy
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
+
+      SUPABASE_URL: http://nginx:80
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_ENABLE_LOGS: true
+  nginx:
+    image: ghcr.io/u-sb/nginx
+    hostname: nginx
+    ports:
+      - '9090:80/tcp'
+    container_name: nginx
+    restart: unless-stopped
+    environment:
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+    volumes:
+      - ./nginx:/usr/src/docker-nginx/conf
+    command:
+      - default.conf
+      - features/auth_api_key.conf
+      - features/connection_upgrade.conf
+      - features/cors.conf
