@@ -16,8 +16,10 @@ alter default privileges in schema public grant all on tables to postgres, anon,
 alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
 
+CREATE SCHEMA extensions;
+
 -- watch CREATE and ALTER
-CREATE OR REPLACE FUNCTION pgrst_ddl_watch() RETURNS event_trigger AS $$
+CREATE OR REPLACE FUNCTION extensions.pgrst_ddl_watch() RETURNS event_trigger AS $$
 DECLARE
   cmd record;
 BEGIN
@@ -44,7 +46,7 @@ BEGIN
 END; $$ LANGUAGE plpgsql;
 
 -- watch DROP
-CREATE OR REPLACE FUNCTION pgrst_drop_watch() RETURNS event_trigger AS $$
+CREATE OR REPLACE FUNCTION extensions.pgrst_drop_watch() RETURNS event_trigger AS $$
 DECLARE
   obj record;
 BEGIN
@@ -70,8 +72,8 @@ END; $$ LANGUAGE plpgsql;
 
 CREATE EVENT TRIGGER pgrst_ddl_watch
   ON ddl_command_end
-  EXECUTE PROCEDURE pgrst_ddl_watch();
+  EXECUTE PROCEDURE extensions.pgrst_ddl_watch();
 
 CREATE EVENT TRIGGER pgrst_drop_watch
   ON sql_drop
-  EXECUTE PROCEDURE pgrst_drop_watch();
+  EXECUTE PROCEDURE extensions.pgrst_drop_watch();
