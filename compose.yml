@@ -35,8 +35,9 @@ services:
       PGRST_JWT_ROLE_CLAIM_KEY: '."role"'
       PGRST_LOG_LEVEL: info
       PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_OPENAPI_SERVER_PROXY_URI: "${SUPABASE_PUBLIC_URL}/rest/v1/"
+      # PGRST_OPENAPI_SECURITY_ACTIVE: 'true'
   meta:
-    container_name: supabase-meta
     image: docker.io/supabase/postgres-meta:v0.84.2
     depends_on:
       postgres:
@@ -50,7 +51,6 @@ services:
       PG_META_DB_USER: postgres
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
   studio:
-    container_name: supabase-studio
     image: docker.io/supabase/studio:20241202-71e5240
     restart: unless-stopped
     healthcheck:
@@ -81,11 +81,10 @@ services:
       AUTH_JWT_SECRET: ${JWT_SECRET}
       NEXT_PUBLIC_ENABLE_LOGS: true
   nginx:
-    image: ghcr.io/u-sb/nginx
+    image: ghcr.io/u-sb/nginx:1.25.4
     hostname: nginx
     ports:
       - '9090:80/tcp'
-    container_name: nginx
     restart: unless-stopped
     environment:
       SUPABASE_ANON_KEY: ${ANON_KEY}
@@ -93,7 +92,11 @@ services:
     volumes:
       - ./nginx:/usr/src/docker-nginx/conf
     command:
-      - default.conf
-      - features/auth_api_key.conf
-      - features/connection_upgrade.conf
-      - features/cors.conf
+      - 10_default.conf
+      - features/00_auth_api_key.conf
+      - features/00_connection_upgrade.conf
+      - features/00_cors.conf
+  swagger:
+    image: swaggerapi/swagger-ui
+    environment:
+      SWAGGER_JSON_URL: "${SUPABASE_PUBLIC_URL}/rest/v1/"
