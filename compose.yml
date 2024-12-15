@@ -36,7 +36,9 @@ services:
       PGRST_LOG_LEVEL: info
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_OPENAPI_SERVER_PROXY_URI: "${SUPABASE_PUBLIC_URL}/rest/v1/"
-      # PGRST_OPENAPI_SECURITY_ACTIVE: 'true'
+      PGRST_OPENAPI_SECURITY_ACTIVE: 'true'
+      PGRST_DB_AGGREGATES_ENABLED: 'true'
+      PGRST_DB_PLAN_ENABLED: 'true'
   meta:
     image: docker.io/supabase/postgres-meta:v0.84.2
     depends_on:
